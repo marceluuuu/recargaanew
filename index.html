@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en">
+  
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Recarga Fácil - Recarga de Celular Online</title>
+    <meta name="description" content="Recarregue seu celular de forma rápida e segura. Todas as operadoras.">
+    <meta name="author" content="Recarga Fácil" />
+
+    
+    
+    <meta property="og:type" content="website" />
+    
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@RecargaFacil" />
+    
+
+    <!-- UTM Manager - Código Universal de Rastreamento + Analytics + Live View -->
+    <!-- Instale UMA VEZ no site. Todas as alterações são feitas no painel! -->
+
+    <script>
+    (function() {
+      'use strict';
+      
+      // ============================================
+      // CONFIGURAÇÃO DO SERVIDOR - NÃO ALTERAR
+      // ============================================
+      const CONFIG_URL = 'https://dpedmcsrnlszxdvfgpqn.supabase.co/functions/v1/get-pixel-config';
+      let TRACKING_URL = 'https://dpedmcsrnlszxdvfgpqn.supabase.co/functions/v1/track-conversion';
+      const PAGEVIEW_URL = 'https://dpedmcsrnlszxdvfgpqn.supabase.co/functions/v1/track-pageview';
+      const HEARTBEAT_URL = 'https://dpedmcsrnlszxdvfgpqn.supabase.co/functions/v1/track-heartbeat';
+      const PENDING_ORDER_URL = 'https://dpedmcsrnlszxdvfgpqn.supabase.co/functions/v1/register-pending-order';
+      
+      // ============================================
+      // INICIALIZAÇÃO
+      // ============================================
+      let pixelId = null;
+      let conversionLabel = null;
+      let utmDefaults = {};
+      let heartbeatInterval = null;
+      
+      // Cache local de conversões já enviadas (evita double-fire no navegador)
+      const sentConversions = {};
+      
+      // Google Click IDs capturados da URL/cookies
+      let capturedGclid = null;
+      let capturedGbraid = null;
+      let capturedWbraid = null;
+
+      function readCookie(name) {
+        const escaped = name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const match = document.cookie.match(new RegExp('(?:^|; )' + escaped + '=([^;]*)'));
+        return match ? decodeURIComponent(match[1]) : null;
+      }
+
+      function parseGclCookieValue(raw) {
+        if (!raw) return null;
+        const parts = String(raw).split('.');
+        if (parts.length >= 3) {
+          return parts.slice(2).join('.') || null;
+        }
+        return raw || null;
+      }
+
+      function getClickIdsFromCookies() {
+        const gclAw = parseGclCookieValue(readCookie('_gcl_aw'));
+        const gclGb = parseGclCookieValue(readCookie('_gcl_gb'));
+
+        return {
+          gclid: gclAw || null,
+          gbraid: gclGb || null,
+          wbraid: null
+        };
+      }
+
+      // Último pedido pendente registrado (para resolver ID canônico)
+      let lastPendingOrder = null;
+      
+      // ============================================
+      // VISITOR & SESSION IDs
+      // ============================================
+      function generateId() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      }
+      
+      function getVisitorId() {
+        let visitorId = localStorage.getItem('utm_visitor_id');
+        if (!visitorId) {
+          visitorId = 'v_' + generateId();
+          localStorage.setItem('utm_visitor_id', visitorId);
+        }
+        return visitorId;
+      }
+      
+      function getSessionId() {
+        let sessionId = sessionStorage.getItem('utm_session_id');
+        if (!sessionId) {
+          sessionId = 's_' + generateId();
+          sessionStorage.setItem('utm_session_id', sessionId);
+        }
+        return sessionId;
+      }
+      
+      const visitorId = getVisitorId();
+      const sessionId = getSessionId();
+      
+      // Carrega configuração do servidor
+      async function loadConfig() {
+        try {
+          const domain = window.location.hostname;
+          console.log('[UTM Manager] Buscando config para domínio:', domain);
+          
+          const response = await fetch(CONFIG_URL + '?domain=' + encodeURIComponent(domain));
+          
+          if (!response.ok) {
+            console.error('[UTM Manager] Erro HTTP:', response.status, response.statusText);
+            return;
+          }
+          
+          const data = await response.json();
+          console.log('[UTM Manager] Resposta recebida:', data);
+          
+          if (!data) {
+            console.warn('[UTM Manager] Resposta vazia do servidor');
+            return;
+          }
+          
+          if (!data.success) {
+            console.warn('[UTM Manager] Servidor retornou erro:', data.error || 'desconhecido');
+            return;
+          }
+          
+          if (!data.pixelMap || typeof data.pixelMap !== 'object') {
+            console.warn('[UTM Manager] pixelMap não encontrado ou inválido na resposta');
+            console.log('[UTM Manager] Estrutura recebida:', Object.keys(data));
+            return;
+          }
+          
+          const normalizedDomain = domain.replace(/^www\./, '');
+          const config = data.pixelMap[domain] || data.pixelMap[normalizedDomain];
+          
+          if (config) {
+            pixelId = config.pixelId;
+            conversionLabel = config.conversionLabel;
+            utmDefaults = config.utmDefaults || {};
+            
+            if (data.trackingUrl) {
+              TRACKING_URL = data.trackingUrl;
+            }
+            
+            initGtag(pixelId);
+            console.log('[UTM Manager] ✅ Configuração carregada:', { pixelId, conversionLabel, domain });
+          } else {
+            console.log('[UTM Manager] ⚠️ Nenhum pixel configurado para:', domain);
+            console.log('[UTM Manager] Domínios disponíveis:', Object.keys(data.pixelMap));
+          }
+        } catch (err) {
+          console.error('[UTM Manager] ❌ Erro ao carregar configuração:', err.message || err);
+        }
+      }
+      
+      // Inicializa Google Tag
+      function initGtag(id) {
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = 'https://www.googletagmanager.com/gtag/js?id=' + id;
+        document.head.appendChild(script);
+        
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        window.gtag = gtag;
+        gtag('js', new Date());
+        gtag('config', id);
+      }
+      
+      // ============================================
+      // CAPTURA E ARMAZENAMENTO DE UTMs
+      // ============================================
+      function getUTMParams() {
+        const params = new URLSearchParams(window.location.search);
+        
+        // Capture Google Click IDs
+        const gclid = params.get('gclid');
+        const gbraid = params.get('gbraid');
+        const wbraid = params.get('wbraid');
+        if (gclid) { capturedGclid = gclid; localStorage.setItem('utm_gclid', gclid); }
+        if (gbraid) { capturedGbraid = gbraid; localStorage.setItem('utm_gbraid', gbraid); }
+        if (wbraid) { capturedWbraid = wbraid; localStorage.setItem('utm_wbraid', wbraid); }
+        
+        // Restore from localStorage if not in URL
+        if (!capturedGclid) capturedGclid = localStorage.getItem('utm_gclid');
+        if (!capturedGbraid) capturedGbraid = localStorage.getItem('utm_gbraid');
+        if (!capturedWbraid) capturedWbraid = localStorage.getItem('utm_wbraid');
+
+        // Fallback: cookies do Google Ads (quando URL chega limpa)
+        if (!capturedGclid || !capturedGbraid) {
+          const cookieIds = getClickIdsFromCookies();
+          if (!capturedGclid && cookieIds.gclid) {
+            capturedGclid = cookieIds.gclid;
+            localStorage.setItem('utm_gclid', capturedGclid);
+          }
+          if (!capturedGbraid && cookieIds.gbraid) {
+            capturedGbraid = cookieIds.gbraid;
+            localStorage.setItem('utm_gbraid', capturedGbraid);
+          }
+        }
+        
+        return {
+          utm_source: params.get('utm_source') || '',
+          utm_medium: params.get('utm_medium') || '',
+          utm_campaign: params.get('utm_campaign') || '',
+          utm_content: params.get('utm_content') || '',
+          utm_term: params.get('utm_term') || '',
+          gclid: capturedGclid || '',
+          gbraid: capturedGbraid || '',
+          wbraid: capturedWbraid || '',
+          pixel_id: pixelId || '',
+          conversion_label: conversionLabel || '',
+          landing_domain: window.location.hostname,
+          landing_url: window.location.href,
+          timestamp: new Date().toISOString()
+        };
+      }
+      
+      function saveUTMData() {
+        const utmData = getUTMParams();
+        if (utmData.utm_source || utmData.utm_campaign) {
+          localStorage.setItem('utm_manager_tracking', JSON.stringify(utmData));
+          sessionStorage.setItem('utm_manager_tracking', JSON.stringify(utmData));
+          console.log('[UTM Manager] UTMs salvos:', utmData);
+        }
+      }
+      
+      function getTrackingData() {
+        const stored = localStorage.getItem('utm_manager_tracking') 
+                    || sessionStorage.getItem('utm_manager_tracking');
+        return stored ? JSON.parse(stored) : null;
+      }
+      
+      // ============================================
+      // HEARTBEAT - LIVE VIEW (Tempo Real)
+      // ============================================
+      async function sendHeartbeat(action) {
+        try {
+          const payload = {
+            domain: window.location.hostname,
+            visitor_id: visitorId,
+            session_id: sessionId,
+            page_url: window.location.pathname,
+            page_title: document.title,
+            action: action || 'heartbeat'
+          };
+          
+          if (action === 'leave' && navigator.sendBeacon) {
+            navigator.sendBeacon(HEARTBEAT_URL, JSON.stringify(payload));
+            return;
+          }
+          
+          await fetch(HEARTBEAT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        } catch (err) {
+          // Silenciosamente ignora erros de heartbeat
+        }
+      }
+      
+      function startHeartbeat() {
+        sendHeartbeat('enter');
+        heartbeatInterval = setInterval(function() {
+          sendHeartbeat('heartbeat');
+        }, 10000);
+      }
+      
+      function stopHeartbeat() {
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+        }
+        sendHeartbeat('leave');
+      }
+      
+      // ============================================
+      // RASTREAMENTO DE PAGE VIEWS (ANALYTICS)
+      // ============================================
+      async function trackPageView() {
+        try {
+          const utmData = getUTMParams();
+          
+          const payload = {
+            domain: window.location.hostname,
+            pageUrl: window.location.pathname + window.location.search,
+            pageTitle: document.title,
+            referrer: document.referrer,
+            userAgent: navigator.userAgent,
+            sessionId: sessionId,
+            visitorId: visitorId,
+            utmSource: utmData.utm_source,
+            utmMedium: utmData.utm_medium,
+            utmCampaign: utmData.utm_campaign,
+            utmContent: utmData.utm_content,
+            utmTerm: utmData.utm_term
+          };
+          
+          const response = await fetch(PAGEVIEW_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          
+          const result = await response.json();
+          if (result.success) {
+            console.log('[UTM Manager] 📊 Page view registrado');
+          }
+        } catch (err) {
+          console.error('[UTM Manager] Erro ao registrar page view:', err);
+        }
+      }
+      
+      let lastPath = window.location.pathname + window.location.search;
+      function handleNavigation() {
+        const currentPath = window.location.pathname + window.location.search;
+        if (currentPath !== lastPath) {
+          lastPath = currentPath;
+          trackPageView();
+          sendHeartbeat('navigate');
+        }
+      }
+      
+      // ============================================
+      // ENVIA CONVERSÃO PARA O BACKEND
+      // ============================================
+      async function sendToBackend(eventType, options) {
+        try {
+          const trackingData = getTrackingData();
+          
+          const payload = {
+            event: eventType,
+            value: options.value || 0,
+            currency: options.currency || 'BRL',
+            transactionId: options.transactionId,
+            pixelId: pixelId,
+            conversionLabel: conversionLabel,
+            utmSource: trackingData?.utm_source,
+            utmMedium: trackingData?.utm_medium,
+            utmCampaign: trackingData?.utm_campaign,
+            utmContent: trackingData?.utm_content,
+            utmTerm: trackingData?.utm_term,
+            gclid: capturedGclid || trackingData?.gclid || null,
+            gbraid: capturedGbraid || trackingData?.gbraid || null,
+            wbraid: capturedWbraid || trackingData?.wbraid || null,
+            customerEmail: options.email,
+            domain: window.location.hostname,
+            visitorId: visitorId,
+            sessionId: sessionId
+          };
+          
+          const response = await fetch(TRACKING_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          
+          const result = await response.json();
+          console.log('[UTM Manager] Conversão registrada no servidor:', result);
+          return result;
+        } catch (err) {
+          console.error('[UTM Manager] Erro ao enviar para backend:', err);
+          return null;
+        }
+      }
+      
+      // ============================================
+      // RESOLVE ID CANÔNICO DE TRANSAÇÃO
+      // ============================================
+      function resolveCanonicalTransactionId(options) {
+        const providedId = options.transactionId || 'txn_' + Date.now();
+        
+        // Se há um pedido pendente recente com o mesmo valor, usar o ID canônico dele
+        if (lastPendingOrder && lastPendingOrder.transactionId) {
+          const timeDiff = Date.now() - lastPendingOrder.timestamp;
+          const sameValue = !options.value || options.value === lastPendingOrder.value;
+          
+          // Dentro de 30 min e mesmo valor = mesmo pedido
+          if (timeDiff < 30 * 60 * 1000 && sameValue) {
+            console.log('[UTM Manager] Usando ID canônico do pending_order:', lastPendingOrder.transactionId, '(original:', providedId, ')');
+            return lastPendingOrder.transactionId;
+          }
+        }
+        
+        return providedId;
+      }
+      
+      // ============================================
+      // POLLING PARA CONFIRMAÇÃO DE PAGAMENTO PIX
+      // ============================================
+      const CHECK_ORDER_URL = 'https://dpedmcsrnlszxdvfgpqn.supabase.co/functions/v1/check-order-status';
+      let activePolls = {};
+      
+      function startPaymentPolling(transactionId, value) {
+        if (activePolls[transactionId]) return;
+        
+        console.log('[UTM Manager] 🔄 Iniciando polling para pagamento:', transactionId);
+        
+        let attempts = 0;
+        const maxAttempts = 60; // 30 min (30s x 60)
+        
+        const pollInterval = setInterval(async function() {
+          attempts++;
+          
+          if (attempts > maxAttempts) {
+            console.log('[UTM Manager] ⏱️ Polling expirado para:', transactionId);
+            clearInterval(pollInterval);
+            delete activePolls[transactionId];
+            return;
+          }
+          
+          try {
+            const response = await fetch(CHECK_ORDER_URL + '?transaction_id=' + encodeURIComponent(transactionId));
+            const result = await response.json();
+            
+            if (result.status === 'paid') {
+              console.log('[UTM Manager] 💰 Pagamento confirmado via polling:', transactionId);
+              clearInterval(pollInterval);
+              delete activePolls[transactionId];
+              
+              // Disparar gtag conversion
+              if (pixelId && conversionLabel && window.gtag && !sentConversions[transactionId]) {
+                sentConversions[transactionId] = true;
+                
+                const conversionData = {
+                  'send_to': pixelId + '/' + conversionLabel,
+                  'value': value || 0,
+                  'currency': 'BRL',
+                  'transaction_id': transactionId
+                };
+                
+                window.gtag('event', 'conversion', conversionData);
+                console.log('[UTM Manager] ✅ Conversão enviada para Google Ads via polling:', conversionData);
+              }
+            }
+          } catch (err) {
+            // Silenciosamente ignora erros de polling
+          }
+        }, 30000);
+        
+        activePolls[transactionId] = pollInterval;
+      }
+      
+      // ============================================
+      // API PÚBLICA
+      // ============================================
+      window.UTMManager = {
+        // === CONVERSÕES ===
+        trackConversion: async function(options) {
+          options = options || {};
+          var trackingData = getTrackingData();
+          var conversionPixel = options.pixelId || (trackingData && trackingData.pixel_id) || pixelId;
+          var label = options.conversionLabel || conversionLabel || 'CONVERSION';
+          var localTransactionId = resolveCanonicalTransactionId(options);
+
+          // Dedupe local inicial
+          if (sentConversions[localTransactionId]) {
+            console.log('[UTM Manager] ⚠️ Conversão já enviada nesta sessão:', localTransactionId);
+            return { success: true, isDuplicate: true, message: 'Já enviada nesta sessão' };
+          }
+
+          // 1) Primeiro registra no backend para obter transaction_id canônico e deduplicação real
+          var backendResult = await sendToBackend('payment.confirmed', {
+            value: options.value,
+            currency: options.currency,
+            transactionId: localTransactionId,
+            email: options.email
+          });
+
+          var finalTransactionId = (backendResult && backendResult.transactionId) || localTransactionId;
+
+          if (backendResult && backendResult.isDuplicate) {
+            sentConversions[localTransactionId] = true;
+            sentConversions[finalTransactionId] = true;
+            console.log('[UTM Manager] ✅ Conversão já registrada no backend, pulando gtag:', finalTransactionId);
+            return { success: true, isDuplicate: true, transactionId: finalTransactionId };
+          }
+
+          if (sentConversions[finalTransactionId]) {
+            console.log('[UTM Manager] ⚠️ Conversão já enviada nesta sessão:', finalTransactionId);
+            return { success: true, isDuplicate: true, message: 'Já enviada nesta sessão' };
+          }
+
+          // 2) Depois envia para Google Ads com o transaction_id final
+          if (conversionPixel && window.gtag) {
+            var conversionData = {
+              'send_to': conversionPixel + '/' + label,
+              'value': options.value || 0,
+              'currency': options.currency || 'BRL',
+              'transaction_id': finalTransactionId
+            };
+
+            if (trackingData) {
+              conversionData.utm_source = trackingData.utm_source;
+              conversionData.utm_campaign = trackingData.utm_campaign;
+              conversionData.utm_content = trackingData.utm_content;
+            }
+
+            window.gtag('event', 'conversion', conversionData);
+            console.log('[UTM Manager] ✅ Conversão enviada para Google Ads:', conversionData);
+          }
+
+          sentConversions[localTransactionId] = true;
+          sentConversions[finalTransactionId] = true;
+
+          return { success: true, isDuplicate: false, transactionId: finalTransactionId };
+        },
+        
+        trackLead: async function(options) {
+          options = options || {};
+          var trackingData = getTrackingData();
+          var leadPixel = options.pixelId || (trackingData && trackingData.pixel_id) || pixelId;
+          
+          if (leadPixel && window.gtag) {
+            window.gtag('event', 'generate_lead', {
+              'send_to': leadPixel,
+              'value': options.value || 0,
+              'currency': 'BRL'
+            });
+            console.log('[UTM Manager] Lead enviado para Google Ads');
+          }
+          
+          await sendToBackend('lead.captured', options);
+          return true;
+        },
+        
+        // === PEDIDO PENDENTE (PIX/Boleto) ===
+        registerPendingOrder: async function(options) {
+          options = options || {};
+          try {
+            var trackingData = getTrackingData();
+            
+            if (!options.transactionId) {
+              console.error('[UTM Manager] registerPendingOrder: transactionId é obrigatório');
+              return { success: false, error: 'transactionId é obrigatório' };
+            }
+            
+            // Salvar localmente para resolver ID canônico em trackConversion
+            lastPendingOrder = {
+              transactionId: options.transactionId,
+              value: options.value || 0,
+              timestamp: Date.now()
+            };
+            
+            // Persistir em sessionStorage para sobreviver a reloads
+            try {
+              sessionStorage.setItem('utm_last_pending', JSON.stringify(lastPendingOrder));
+            } catch(e) {}
+            
+            var payload = {
+              transactionId: options.transactionId,
+              domain: window.location.hostname,
+              value: options.value || 0,
+              email: options.email || null,
+              phone: options.phone || null,
+              utmSource: trackingData ? trackingData.utm_source : null,
+              utmMedium: trackingData ? trackingData.utm_medium : null,
+              utmCampaign: trackingData ? trackingData.utm_campaign : null,
+              utmContent: trackingData ? trackingData.utm_content : null,
+              utmTerm: trackingData ? trackingData.utm_term : null,
+              visitorId: visitorId,
+              sessionId: sessionId,
+              pixelId: pixelId,
+              conversionLabel: conversionLabel,
+              gclid: capturedGclid || null,
+              gbraid: capturedGbraid || null,
+              wbraid: capturedWbraid || null
+            };
+            
+            console.log('[UTM Manager] Registrando pedido pendente:', payload);
+            
+            var response = await fetch(PENDING_ORDER_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            
+            var result = await response.json();
+            
+            if (result.success) {
+              console.log('[UTM Manager] ✅ Pedido pendente registrado:', result);
+              // Iniciar polling para verificar quando o pagamento for confirmado
+              startPaymentPolling(options.transactionId, options.value || 0);
+            } else {
+              console.error('[UTM Manager] ❌ Erro ao registrar pedido pendente:', result);
+            }
+            
+            return result;
+          } catch (err) {
+            console.error('[UTM Manager] Erro ao registrar pedido pendente:', err);
+            return { success: false, error: err.message || 'Erro desconhecido' };
+          }
+        },
+        
+        // === DADOS DE TRACKING ===
+        getTrackingData: getTrackingData,
+        getActivePixel: function() { return pixelId; },
+        getConversionLabel: function() { return conversionLabel; },
+        getDefaults: function() { return utmDefaults; },
+        
+        // === ANALYTICS ===
+        getVisitorId: function() { return visitorId; },
+        getSessionId: function() { return sessionId; },
+        trackPageView: trackPageView,
+        
+        // === UTILITÁRIOS ===
+        reload: loadConfig
+      };
+      
+      // ============================================
+      // INICIALIZA
+      // ============================================
+      
+      // Restaurar lastPendingOrder de sessionStorage
+      try {
+        var stored = sessionStorage.getItem('utm_last_pending');
+        if (stored) lastPendingOrder = JSON.parse(stored);
+      } catch(e) {}
+      
+      loadConfig().then(function() {
+        saveUTMData();
+        trackPageView();
+        startHeartbeat();
+        
+        window.addEventListener('popstate', handleNavigation);
+        
+        var originalPushState = history.pushState;
+        history.pushState = function() {
+          originalPushState.apply(this, arguments);
+          handleNavigation();
+        };
+        
+        var originalReplaceState = history.replaceState;
+        history.replaceState = function() {
+          originalReplaceState.apply(this, arguments);
+          handleNavigation();
+        };
+      });
+      
+      // ============================================
+      // DETECTA SAÍDA DO USUÁRIO
+      // ============================================
+      window.addEventListener('beforeunload', stopHeartbeat);
+      window.addEventListener('pagehide', stopHeartbeat);
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden') {
+          sendHeartbeat('hidden');
+        } else if (document.visibilityState === 'visible') {
+          sendHeartbeat('visible');
+        }
+      });
+      
+      console.log('[UTM Manager] 🚀 Sistema Universal + Analytics + Live View inicializado');
+      
+    })();
+    </script>
+    <meta property="og:title" content="Recarga Fácil - Recarga de Celular Online">
+  <meta name="twitter:title" content="Recarga Fácil - Recarga de Celular Online">
+  <meta property="og:description" content="Recarregue seu celular de forma rápida e segura. Todas as operadoras.">
+  <meta name="twitter:description" content="Recarregue seu celular de forma rápida e segura. Todas as operadoras.">
+  <script type="module" crossorigin src="assets/index-CYpNA6SQ.js"></script>
+  <link rel="stylesheet" crossorigin href="assets/index-Cb7tIktc.css">
+</head>
+
+  <body>
+    <div id="root"></div>
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"949be26b916f42ffb0728c028456bcbd","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+
+
+</html>
