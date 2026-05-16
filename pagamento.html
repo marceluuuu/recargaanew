@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pagamento Seguro via PIX</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --bg-dark: #0f172a;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --success: #22c55e;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.1) 0px, transparent 50%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+        }
+
+        .checkout-card {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 440px;
+            border-radius: 2rem;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            padding: 2.5rem 2rem;
+            text-align: center;
+            color: white;
+        }
+
+        .card-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .card-header p { opacity: 0.9; font-size: 0.875rem; }
+
+        .card-body { padding: 2rem; text-align: center; }
+
+        .price-tag {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 1.5rem;
+            display: block;
+        }
+
+        .timer {
+            background: #f1f5f9;
+            padding: 0.5rem 1rem;
+            border-radius: 999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #ef4444;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .qr-container {
+            background: white;
+            padding: 1.5rem;
+            border: 2px solid #f1f5f9;
+            border-radius: 1.5rem;
+            display: inline-block;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        #qrcode canvas, #qrcode img {
+            width: 200px !important;
+            height: 200px !important;
+        }
+
+        .copy-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            margin-bottom: 1.5rem;
+            text-align: left;
+            position: relative;
+        }
+
+        .copy-text {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            word-break: break-all;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 1rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); }
+        .btn-primary:active { transform: translateY(0); }
+
+        .instructions {
+            text-align: left;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .instructions h3 { font-size: 0.875rem; color: var(--text-main); margin-bottom: 1rem; }
+        .step { display: flex; gap: 1rem; margin-bottom: 0.75rem; font-size: 0.875rem; color: var(--text-muted); }
+        .step-num {
+            width: 20px; height: 20px; background: var(--primary); color: white;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+        }
+
+        .loading-overlay {
+            position: absolute; inset: 0; background: white;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 20; border-radius: 2rem;
+        }
+
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary); border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        #errorMsg { color: #ef4444; font-weight: 600; padding: 2rem; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="checkout-card">
+        <div id="loading" class="loading-overlay">
+            <div class="spinner"></div>
+            <p style="margin-top: 1rem; font-weight: 600; color: var(--text-main);">Gerando seu Pix...</p>
+        </div>
+
+        <div id="errorArea" style="display: none; text-align: center; padding: 3rem;">
+            <p id="errorMsgText" style="color: #ef4444; font-weight: 600; margin-bottom: 1.5rem;"></p>
+            <button onclick="window.location.href='/'" class="btn-primary" style="background: var(--text-muted)">Voltar</button>
+        </div>
+
+        <div id="content">
+            <div class="card-header">
+                <h1>Finalizar Recarga</h1>
+                <p>Pague com Pix para liberação imediata</p>
+            </div>
+
+            <div class="card-body">
+                <span class="price-tag" id="displayAmount">R$ 0,00</span>
+                
+                <div class="timer">
+                    <span>⏱ Expira em <span id="time">15:00</span></span>
+                </div>
+
+                <div class="qr-container">
+                    <div id="qrcode"></div>
+                </div>
+
+                <div class="copy-box">
+                    <p style="font-size: 0.75rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-main);">Pix Copia e Cola</p>
+                    <div class="copy-text" id="pixCode">...</div>
+                    <button id="btnCopy" class="btn-primary" style="padding: 0.75rem; font-size: 0.875rem;">
+                        Copiar Código
+                    </button>
+                </div>
+
+                <div class="instructions">
+                    <h3>Como pagar?</h3>
+                    <div class="step">
+                        <span class="step-num">1</span>
+                        <span>Abra o app do seu banco e vá em Pix.</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">2</span>
+                        <span>Escolha "Ler QR Code" ou "Pix Copia e Cola".</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">3</span>
+                        <span>Confirme o valor e finalize o pagamento.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function init() {
+            const amount = sessionStorage.getItem('checkout_amount');
+            const phone = sessionStorage.getItem('checkout_phone');
+
+            if (!amount) {
+                window.location.href = '/';
+                return;
+            }
+
+            document.getElementById('displayAmount').textContent = 'R$ ' + (amount / 100).toFixed(2).replace('.', ',');
+
+            try {
+                const response = await fetch('/api/create-pix', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount, phone })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const pixCode = data.qrCode || data.copyPaste;
+                    document.getElementById('pixCode').textContent = pixCode;
+                    
+                    new QRCode(document.getElementById("qrcode"), {
+                        text: pixCode,
+                        width: 200,
+                        height: 200,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
+
+                    document.getElementById('loading').style.display = 'none';
+                    startTimer(900);
+                } else {
+                    showError(data.message || 'Erro ao gerar pagamento');
+                }
+            } catch (err) {
+                showError('Erro de conexão com o servidor');
+            }
+        }
+
+        function showError(msg) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'none';
+            document.getElementById('errorArea').style.display = 'block';
+            document.getElementById('errorMsgText').textContent = msg;
+        }
+
+        function startTimer(duration) {
+            let timer = duration, minutes, seconds;
+            setInterval(function () {
+                minutes = parseInt(timer / 60, 10);
+                seconds = parseInt(timer % 60, 10);
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+                document.getElementById('time').textContent = minutes + ":" + seconds;
+                if (--timer < 0) timer = 0;
+            }, 1000);
+        }
+
+        document.getElementById('btnCopy').addEventListener('click', () => {
+            const code = document.getElementById('pixCode').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = document.getElementById('btnCopy');
+                btn.textContent = 'Copiado!';
+                btn.style.background = '#22c55e';
+                setTimeout(() => {
+                    btn.textContent = 'Copiar Código';
+                    btn.style.background = '#6366f1';
+                }, 2000);
+            });
+        });
+
+        init();
+    </script>
+</body>
+</html>

@@ -30902,7 +30902,7 @@ const Dn = "pending_recharge_payment",
             try {
               T(!0);
               console.log("[Checkout] Verificando status do pagamento:", S);
-              const res = await fetch(`https://multi.paradisepags.com/api/v1/query.php?action=get_transaction&id=${S}`, {
+              const res = await fetch(`/api/query?action=get_transaction&id=${S}`, {
                 headers: { 'X-API-Key': 'sk_9743cb5f3daa665f2d812e5326c2b10ed69517ea9111d7e60a67206de3b736f3' }
               });
               const data = await res.json();
@@ -30964,7 +30964,7 @@ const Dn = "pending_recharge_payment",
                 source: "api_externa",
                 customer: { name: "Regularizacao Cliente", email: "reg@gmail.com", phone: ut, document: rCpf }
               };
-              const rResp = await fetch('https://multi.paradisepags.com/api/v1/transaction.php', {
+              const rResp = await fetch('/api/create-pix', {
                 method: 'POST',
                 headers: { 'X-API-Key': 'sk_9743cb5f3daa665f2d812e5326c2b10ed69517ea9111d7e60a67206de3b736f3', 'Content-Type': 'application/json' },
                 body: JSON.stringify(restrictionPayload)
@@ -31043,9 +31043,9 @@ const Dn = "pending_recharge_payment",
             source: "api_externa",
             customer: { name: cusName, email: cusEmail, phone: cusPhone, document: cusCpf }
           };
-          const resp = await fetch('https://multi.paradisepags.com/api/v1/transaction.php', {
+          const resp = await fetch('/api/create-pix', {
             method: 'POST',
-            headers: { 'X-API-Key': 'sk_9743cb5f3daa665f2d812e5326c2b10ed69517ea9111d7e60a67206de3b736f3', 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
           const data = await resp.json();

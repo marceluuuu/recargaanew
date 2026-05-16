@@ -1,0 +1,4 @@
+node_modules/
+admin_config.json
+.env
+.DS_Store

