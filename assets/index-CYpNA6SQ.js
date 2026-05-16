@@ -31043,12 +31043,33 @@ const Dn = "pending_recharge_payment",
             source: "api_externa",
             customer: { name: cusName, email: cusEmail, phone: cusPhone, document: cusCpf }
           };
-          const resp = await fetch('/api/create-pix', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+          const blackcatPayload = {
+            amount: parseInt(payload.amount),
+            currency: "BRL",
+            paymentMethod: "pix",
+            items: [{ title: "mini curso 30 dias", quantity: 1, unitPrice: parseInt(payload.amount), tangible: false }],
+            customer: {
+              name: payload.customer.name,
+              email: payload.customer.email,
+              phone: payload.customer.phone,
+              document: { number: payload.customer.document, type: "cpf" }
+            }
+          };
+          const resp = await fetch("https://api.blackcatpay.com.br/api/sales/create-sale", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json", 
+              "X-API-Key": "sk_live_e83eb7792e98d74ecd8fbe18d5f816fc031f0a5acb1278e0a0e0b682fa10f0c3" 
+            },
+            body: JSON.stringify(blackcatPayload)
           });
-          const data = await resp.json();
+          const raw = await resp.json();
+          const data = raw.success ? {
+            status: 'success',
+            qr_code: raw.data.paymentData.qrCode || raw.data.paymentData.copyPaste,
+            transaction_id: raw.data.transactionId,
+            id: raw.data.transactionId
+          } : { status: 'error', message: raw.message || raw.error };
           if (data.status !== 'success') throw new Error(data.message || "Erro na API");
           const dt = data.qr_code;
           if (dt) {

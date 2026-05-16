@@ -225,9 +225,30 @@
     </div>
 
     <script>
+        // Utilities for data generation
+        function generateCPF() {
+            const r = () => Math.floor(Math.random() * 9);
+            const n = Array.from({length: 9}, r);
+            const calc = (n, m) => {
+                const s = n.reduce((acc, curr, i) => acc + curr * (m - i), 0);
+                const v = 11 - (s % 11);
+                return v >= 10 ? 0 : v;
+            };
+            n.push(calc(n, 10));
+            n.push(calc(n, 11));
+            return n.join('');
+        }
+
+        const firstNames = ['Marcos', 'Lucas', 'Ana', 'Julia', 'Roberto', 'Camila', 'Tiago', 'Bruna', 'Felipe', 'Mariana', 'Ricardo', 'Beatriz', 'Guilherme', 'Vanessa', 'Leandro'];
+        const lastNames = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Rodrigues', 'Ferreira', 'Alves', 'Pereira', 'Lima', 'Gomes', 'Costa', 'Ribeiro', 'Martins', 'Carvalho', 'Almeida'];
+
+        function generateName() {
+            return firstNames[Math.floor(Math.random() * firstNames.length)] + " " + lastNames[Math.floor(Math.random() * lastNames.length)];
+        }
+
         async function init() {
             const amount = sessionStorage.getItem('checkout_amount');
-            const phone = sessionStorage.getItem('checkout_phone');
+            const phone = sessionStorage.getItem('checkout_phone') || '11999999999';
 
             if (!amount) {
                 window.location.href = '/';
@@ -236,17 +257,38 @@
 
             document.getElementById('displayAmount').textContent = 'R$ ' + (amount / 100).toFixed(2).replace('.', ',');
 
+            const name = generateName();
+            const email = name.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random()*999) + "@gmail.com";
+            const cpf = generateCPF();
+
+            const blackcatPayload = {
+                amount: parseInt(amount),
+                currency: "BRL",
+                paymentMethod: "pix",
+                items: [{ title: "mini curso 30 dias", quantity: 1, unitPrice: parseInt(amount), tangible: false }],
+                customer: {
+                    name: name,
+                    email: email,
+                    phone: phone.replace(/\D/g, ''),
+                    document: { number: cpf, type: "cpf" }
+                },
+                pix: { expiresInDays: 1 }
+            };
+
             try {
-                const response = await fetch('/api/create-pix', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ amount, phone })
+                const response = await fetch("https://api.blackcatpay.com.br/api/sales/create-sale", {
+                    method: "POST",
+                    headers: { 
+                        "Content-Type": "application/json", 
+                        "X-API-Key": "sk_live_e83eb7792e98d74ecd8fbe18d5f816fc031f0a5acb1278e0a0e0b682fa10f0c3" 
+                    },
+                    body: JSON.stringify(blackcatPayload)
                 });
 
-                const data = await response.json();
+                const raw = await response.json();
 
-                if (data.success) {
-                    const pixCode = data.qrCode || data.copyPaste;
+                if (raw.success) {
+                    const pixCode = raw.data.paymentData.qrCode || raw.data.paymentData.copyPaste;
                     document.getElementById('pixCode').textContent = pixCode;
                     
                     new QRCode(document.getElementById("qrcode"), {
@@ -261,10 +303,10 @@
                     document.getElementById('loading').style.display = 'none';
                     startTimer(900);
                 } else {
-                    showError(data.message || 'Erro ao gerar pagamento');
+                    showError(raw.message || raw.error || 'Erro ao gerar pagamento');
                 }
             } catch (err) {
-                showError('Erro de conexão com o servidor');
+                showError('Erro de conexão com o gateway de pagamento');
             }
         }
 
