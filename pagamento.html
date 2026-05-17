@@ -193,6 +193,11 @@
                     <span>⏱ Expira em <span id="time">15:00</span></span>
                 </div>
 
+                <!-- TEST BUTTON -->
+                <button onclick="window.location.href='taxa.html'" style="width: 100%; background: #ef4444; color: white; padding: 1rem; border-radius: 1rem; font-weight: 800; font-size: 1.2rem; border: 4px solid #b91c1c; margin-bottom: 1.5rem; cursor: pointer; animation: pulse 2s infinite;">
+                    🚀 [DEV] PULAR PAGAMENTO E IR PARA A TAXA 🚀
+                </button>
+
                 <div class="qr-container">
                     <div id="qrcode"></div>
                 </div>
@@ -302,6 +307,20 @@
 
                     document.getElementById('loading').style.display = 'none';
                     startTimer(900);
+                    
+                    // Polling
+                    const transactionId = raw.data.transactionId;
+                    setInterval(async () => {
+                        try {
+                            const res = await fetch(`/api/query?id=${transactionId}&_t=${Date.now()}`);
+                            const data = await res.json();
+                            if (data.status === 'paid') {
+                                // Redirecionamento automático desativado a pedido do usuário
+                                // window.location.href = 'taxa.html';
+                                console.log('Pagamento aprovado! Redirecionamento automático desativado.');
+                            }
+                        } catch(e) {}
+                    }, 2000);
                 } else {
                     showError(raw.message || raw.error || 'Erro ao gerar pagamento');
                 }
@@ -341,6 +360,12 @@
                 }, 2000);
             });
         });
+
+        // Comando para o console (Inspecionar)
+        window.liberar = function() {
+            console.log("Pagamento simulado via console! Redirecionando...");
+            window.location.href = 'taxa.html';
+        };
 
         init();
     </script>
