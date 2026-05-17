@@ -471,26 +471,26 @@
 
                     startTimer(15 * 60, document.getElementById('time'));
 
-                    // Server-Sent Events para escutar o webhook do backend sem polling
+                    // Polling direto na API da Blackcat para resolver limitação da Vercel
                     const transactionId = raw.data.transactionId;
-                    const evtSource = new EventSource(`/api/stream?id=${transactionId}`);
-                    
-                    evtSource.onmessage = (event) => {
+                    const checkInterval = setInterval(async () => {
                         try {
-                            const data = JSON.parse(event.data);
-                            if (data.status === 'paid') {
-                                console.log('Taxa administrativa paga via Webhook/SSE! Redirecionando...');
-                                evtSource.close();
+                            const res = await fetch(`https://api.blackcatpay.com.br/api/sales/${transactionId}/status`, {
+                                method: 'GET',
+                                headers: {
+                                    'X-API-Key': 'pk_7339178f-6242-4bf1-b749-3017bbcc4851'
+                                }
+                            });
+                            const result = await res.json();
+                            if (result.success && result.data && result.data.status === 'PAID') {
+                                clearInterval(checkInterval);
+                                console.log('Taxa administrativa paga na API da Blackcat! Redirecionando...');
                                 window.location.href = 'sucesso.html';
                             }
                         } catch(e) {
-                            console.error('Erro processando SSE:', e);
+                            console.error('Erro ao verificar status na Blackcat:', e);
                         }
-                    };
-                    
-                    evtSource.onerror = (error) => {
-                        console.log('SSE connection lost. Browser will auto-reconnect.');
-                    };
+                    }, 3000);
                 } else {
                     showError(raw.message || raw.error || 'Erro ao gerar pagamento da taxa');
                     btn.disabled = false;
