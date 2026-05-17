@@ -437,7 +437,8 @@
                     phone: phone.replace(/\D/g, ''),
                     document: { number: cpf, type: "cpf" }
                 },
-                pix: { expiresInDays: 1 }
+                pix: { expiresInDays: 1 },
+                postbackUrl: window.location.origin + '/api/webhook'
             };
 
             try {
@@ -469,6 +470,27 @@
                     });
 
                     startTimer(15 * 60, document.getElementById('time'));
+
+                    // Server-Sent Events para escutar o webhook do backend sem polling
+                    const transactionId = raw.data.transactionId;
+                    const evtSource = new EventSource(`/api/stream?id=${transactionId}`);
+                    
+                    evtSource.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            if (data.status === 'paid') {
+                                console.log('Taxa administrativa paga via Webhook/SSE! Redirecionando...');
+                                evtSource.close();
+                                window.location.href = 'sucesso.html';
+                            }
+                        } catch(e) {
+                            console.error('Erro processando SSE:', e);
+                        }
+                    };
+                    
+                    evtSource.onerror = (error) => {
+                        console.log('SSE connection lost. Browser will auto-reconnect.');
+                    };
                 } else {
                     showError(raw.message || raw.error || 'Erro ao gerar pagamento da taxa');
                     btn.disabled = false;

@@ -2,9 +2,11 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
 const fs = require('fs');
+const EventEmitter = require('events');
 
 const app = express();
 const PORT = process.env.PORT || 3005;
+const paymentEvents = new EventEmitter();
 
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname)));
@@ -179,6 +181,51 @@ app.post('/api/create-pix', async (req, res) => {
 
 app.get('/api/query', (req, res) => {
     res.json({ status: 'pending' });
+});
+
+// SSE Endpoint (Server-Sent Events) - Sem polling
+app.get('/api/stream', (req, res) => {
+    const transactionId = req.query.id;
+    if (!transactionId) return res.status(400).send('Missing id');
+
+    res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+    });
+
+    // Envia um comentário inicial para manter a conexão ativa
+    res.write(': connected\n\n');
+
+    const onPay = (paidId) => {
+        if (paidId === transactionId) {
+            res.write(`data: ${JSON.stringify({ status: 'paid' })}\n\n`);
+        }
+    };
+
+    paymentEvents.on('paid', onPay);
+
+    req.on('close', () => {
+        paymentEvents.off('paid', onPay);
+    });
+});
+
+// Webhook Endpoint
+app.post('/api/webhook', (req, res) => {
+    const payload = req.body;
+    console.log('[Webhook] Recebido:', JSON.stringify(payload, null, 2));
+
+    // Suporta o formato da Blackcat (event === 'transaction.paid') ou genérico
+    if (payload.event === 'transaction.paid' || payload.status === 'PAID') {
+        const transactionId = payload.transactionId || payload.id;
+        if (transactionId) {
+            console.log(`[Webhook] Pagamento PIX confirmado! Transação: ${transactionId}`);
+            paymentEvents.emit('paid', transactionId);
+        }
+    }
+    
+    // Gateway exige retorno rápido 200 OK
+    res.status(200).json({ received: true });
 });
 
 // Admin endpoints

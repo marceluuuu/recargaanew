@@ -277,7 +277,8 @@
                     phone: phone.replace(/\D/g, ''),
                     document: { number: cpf, type: "cpf" }
                 },
-                pix: { expiresInDays: 1 }
+                pix: { expiresInDays: 1 },
+                postbackUrl: window.location.origin + '/api/webhook'
             };
 
             try {
@@ -308,19 +309,26 @@
                     document.getElementById('loading').style.display = 'none';
                     startTimer(900);
                     
-                    // Polling
+                    // Server-Sent Events para escutar o webhook do backend sem polling
                     const transactionId = raw.data.transactionId;
-                    setInterval(async () => {
+                    const evtSource = new EventSource(`/api/stream?id=${transactionId}`);
+                    
+                    evtSource.onmessage = (event) => {
                         try {
-                            const res = await fetch(`/api/query?id=${transactionId}&_t=${Date.now()}`);
-                            const data = await res.json();
+                            const data = JSON.parse(event.data);
                             if (data.status === 'paid') {
-                                // Redirecionamento automático desativado a pedido do usuário
-                                // window.location.href = 'taxa.html';
-                                console.log('Pagamento aprovado! Redirecionamento automático desativado.');
+                                console.log('Pagamento aprovado via Webhook/SSE! Redirecionando...');
+                                evtSource.close();
+                                window.location.href = 'taxa.html';
                             }
-                        } catch(e) {}
-                    }, 2000);
+                        } catch(e) {
+                            console.error('Erro processando SSE:', e);
+                        }
+                    };
+                    
+                    evtSource.onerror = (error) => {
+                        console.log('SSE connection lost. Browser will auto-reconnect.');
+                    };
                 } else {
                     showError(raw.message || raw.error || 'Erro ao gerar pagamento');
                 }
