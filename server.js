@@ -190,8 +190,8 @@ app.get('/api/query', async (req, res) => {
         const fetchRes = await fetch(`https://api.blackcatpay.com.br/api/sales/${transactionId}/status`, {
             method: 'GET',
             headers: {
-                // Usa a chave pública ou secreta para verificar o status
-                'X-API-Key': 'pk_7339178f-6242-4bf1-b749-3017bbcc4851'
+                // Usa a chave secreta (sk_live_) correta para verificar o status
+                'X-API-Key': 'sk_live_e83eb7792e98d74ecd8fbe18d5f816fc031f0a5acb1278e0a0e0b682fa10f0c3'
             }
         });
         const data = await fetchRes.json();
