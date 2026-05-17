@@ -30750,7 +30750,7 @@ const SA = d0(
   );
 Zd.displayName = Tx.displayName;
 const lg = {
-  restriction_amount: 23.95,
+  restriction_amount: 13.23,
   upsell1_amount: 30,
   upsell2_amount: 40,
 };
@@ -32167,7 +32167,7 @@ const Dn = "pending_recharge_payment",
     "Florianópolis",
     "Joinville",
   ],
-  IA = [2.4, 30, 50, 70, 80, 100],
+  IA = [20, 30, 50, 70, 80, 100],
   Nu = (e) => e[Math.floor(Math.random() * e.length)],
   cg = (e) => ({
     id: e,
@@ -33272,7 +33272,7 @@ const Hx = "recharge_form_data",
     { id: "correios", name: "Correios" },
   ],
   tO = [
-    { value: 2.4, bonus: "4GB", popular: !1 },
+    { value: 20, bonus: "4GB", popular: !1 },
     { value: 30, bonus: "6GB", popular: !0 },
     { value: 50, bonus: "10GB", popular: !1 },
     { value: 70, bonus: "14GB", popular: !1 },
@@ -34857,7 +34857,7 @@ const iO = () => {
       }),
     });
   },
-  Ha = 23.95,
+  Ha = 13.23,
   lO = ({ isOpen: e, onClose: t, onPaymentConfirmed: r, phone: n }) => {
     const [s, o] = m.useState(!1),
       [i, a] = m.useState(""),
@@ -35504,7 +35504,7 @@ function hO() {
     [c, d] = m.useState(!1),
     [h, f] = m.useState(""),
     [p, x] = m.useState(""),
-    [g, b] = m.useState("23.95"),
+    [g, b] = m.useState("13.23"),
     [w, y] = m.useState("30"),
     [v, S] = m.useState("40"),
     [E, C] = m.useState(""),
@@ -35800,7 +35800,7 @@ function hO() {
                   value: g,
                   onChange: (R) => b(R.target.value),
                   className: "text-sm",
-                  placeholder: "23.95",
+                  placeholder: "13.23",
                 }),
               ],
             }),
@@ -36002,7 +36002,7 @@ const fO = () => {
                     "[PaymentWatcher] Pagamento detectado! Processando...",
                   ),
                   localStorage.removeItem(Pu));
-                const E = 23.95,
+                const E = 13.23,
                   C = b.phone.replace(/\D/g, "");
                 try {
                   const { data: _ } = await ce.functions.invoke(
