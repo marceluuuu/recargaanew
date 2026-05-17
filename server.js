@@ -179,8 +179,32 @@ app.post('/api/create-pix', async (req, res) => {
     }
 });
 
-app.get('/api/query', (req, res) => {
-    res.json({ status: 'pending' });
+// Rota de consulta do polling do Frontend (Usada pelo React)
+app.get('/api/query', async (req, res) => {
+    const transactionId = req.query.id;
+    if (!transactionId) {
+        return res.json({ status: 'pending' });
+    }
+
+    try {
+        const fetchRes = await fetch(`https://api.blackcatpay.com.br/api/sales/${transactionId}/status`, {
+            method: 'GET',
+            headers: {
+                // Usa a chave pública ou secreta para verificar o status
+                'X-API-Key': 'pk_7339178f-6242-4bf1-b749-3017bbcc4851'
+            }
+        });
+        const data = await fetchRes.json();
+        
+        if (data && data.success && data.data && data.data.status === 'PAID') {
+            return res.json({ status: 'paid' });
+        }
+        
+        res.json({ status: 'pending' });
+    } catch (error) {
+        console.error('[API Query] Erro ao consultar status na Blackcat:', error);
+        res.json({ status: 'pending' });
+    }
 });
 
 // SSE Endpoint (Server-Sent Events) - Sem polling
