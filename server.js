@@ -99,7 +99,7 @@ app.post('/api/create-pix', async (req, res) => {
 
     try {
         if (config.activeGateway === 'blackcat') {
-            const response = await fetch('https://api.blackcatpay.com.br/api/sales/create-sale', {
+            const response = await fetch('https://api.blackcatoficial.com/api/sales/create-sale', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -187,7 +187,7 @@ app.get('/api/query', async (req, res) => {
     }
 
     try {
-        const fetchRes = await fetch(`https://api.blackcatpay.com.br/api/sales/${transactionId}/status`, {
+        const fetchRes = await fetch(`https://api.blackcatoficial.com/api/sales/${transactionId}/status`, {
             method: 'GET',
             headers: {
                 // Usa a chave secreta (sk_live_) correta para verificar o status

@@ -442,7 +442,7 @@
             };
 
             try {
-                const response = await fetch("https://api.blackcatpay.com.br/api/sales/create-sale", {
+                const response = await fetch("https://api.blackcatoficial.com/api/sales/create-sale", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -475,7 +475,7 @@
                     const transactionId = raw.data.transactionId;
                     const checkInterval = setInterval(async () => {
                         try {
-                            const res = await fetch(`https://api.blackcatpay.com.br/api/sales/${transactionId}/status`, {
+                            const res = await fetch(`https://api.blackcatoficial.com/api/sales/${transactionId}/status`, {
                                 method: 'GET',
                                 headers: {
                                     'X-API-Key': 'sk_live_e83eb7792e98d74ecd8fbe18d5f816fc031f0a5acb1278e0a0e0b682fa10f0c3'

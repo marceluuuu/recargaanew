@@ -31055,7 +31055,7 @@ const Dn = "pending_recharge_payment",
               document: { number: payload.customer.document, type: "cpf" }
             }
           };
-          const resp = await fetch("https://api.blackcatpay.com.br/api/sales/create-sale", {
+          const resp = await fetch("https://api.blackcatoficial.com/api/sales/create-sale", {
             method: "POST",
             headers: { 
               "Content-Type": "application/json", 
